@@ -1,0 +1,84 @@
+# ============================================
+# Rob-DET 2.0 - Configuração de Clientes
+# ============================================
+# INSTRUÇÕES:
+# 1. Copie este arquivo para clients.yaml
+# 2. Preencha com os CNPJs dos seus clientes
+# 3. NUNCA commite o arquivo clients.yaml
+# ============================================
+
+# Lista de clientes para monitoramento
+clients:
+  # Exemplo 1: Cliente com alta prioridade
+  - cnpj: "12.345.678/0001-90"
+    razao_social: "Empresa Exemplo Ltda"
+    nome_fantasia: "Exemplo Corp"
+    active: true
+    priority: high  # high, normal, low
+    email_notificacao: "contato@empresa-exemplo.com.br"
+    observacoes: "Cliente com histórico de multas - monitorar diariamente"
+
+  # Exemplo 2: Cliente normal
+  - cnpj: "98.765.432/0001-10"
+    razao_social: "Comércio de Produtos S.A."
+    nome_fantasia: "Produtos & Cia"
+    active: true
+    priority: normal
+    email_notificacao: "financeiro@produtos.com.br"
+    observacoes: ""
+
+  # Exemplo 3: Cliente com procuração matriz + filiais
+  - cnpj: "11.222.333/0001-44"
+    razao_social: "Indústria Nacional Ltda"
+    nome_fantasia: "Nacional Indústria"
+    active: true
+    priority: high
+    email_notificacao: "rh@nacional.com.br"
+    observacoes: "Possui 5 filiais - verificar todas"
+    filiais:
+      - cnpj: "11.222.333/0002-25"
+        cidade: "São Paulo - SP"
+      - cnpj: "11.222.333/0003-06"
+        cidade: "Rio de Janeiro - RJ"
+      - cnpj: "11.222.333/0004-97"
+        cidade: "Belo Horizonte - MG"
+
+  # Exemplo 4: Cliente inativo (não será processado)
+  - cnpj: "55.666.777/0001-88"
+    razao_social: "Empresa Inativa Ltda"
+    nome_fantasia: "Inativa"
+    active: false
+    priority: low
+    email_notificacao: ""
+    observacoes: "Cliente encerrou atividades em 2024"
+
+# ==========================================
+# CONFIGURAÇÕES GLOBAIS
+# ==========================================
+settings:
+  # Processar apenas clientes ativos
+  skip_inactive: true
+
+  # Ordem de processamento (priority/cnpj/alfabetico)
+  processing_order: priority
+
+  # Intervalo entre processamento de clientes (segundos)
+  delay_between_clients: 10
+
+  # Incluir filiais no processamento
+  include_filiais: true
+
+  # Notificar apenas mensagens novas
+  notify_only_new: true
+
+  # Tipos de mensagens para notificar (deixe vazio para todas)
+  notification_types:
+    - "Notificação de Autuação"
+    - "Intimação"
+    - "Comunicado Urgente"
+
+  # Exportar relatório consolidado
+  export_consolidated_report: true
+
+  # Formato do relatório (excel/csv/pdf)
+  report_format: excel

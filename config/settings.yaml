@@ -1,0 +1,284 @@
+# ============================================
+# Rob-DET 2.0 - Configurações Gerais
+# ============================================
+
+# ==========================================
+# APLICAÇÃO
+# ==========================================
+app:
+  name: "Rob-DET 2.0"
+  version: "2.0.0-alpha"
+  description: "Robô de Automação DET"
+
+# ==========================================
+# PORTAL DET
+# ==========================================
+det:
+  # URL base do portal
+  url: "https://det.sit.trabalho.gov.br/"
+
+  # Endpoints específicos
+  endpoints:
+    login: "/"
+    caixa_postal: "/correspondencia/caixaPostal"
+    mensagens: "/correspondencia/mensagens"
+    notificacoes: "/notificacao"
+
+  # Timeouts (em segundos)
+  timeouts:
+    page_load: 30
+    element_wait: 15
+    ajax_wait: 10
+
+  # Seletores CSS/XPath (pode precisar atualizar se portal mudar)
+  selectors:
+    btn_certificado: "button[id*='certificado']"
+    dropdown_cnpj: "select#cnpjSelect"
+    tabela_mensagens: "table.mensagens"
+    checkbox_nao_lida: "input[name='naolida']"
+
+# ==========================================
+# SELENIUM
+# ==========================================
+selenium:
+  # Navegador (chrome/edge/firefox)
+  browser: chrome
+
+  # Modo headless
+  headless: false
+
+  # Opções do Chrome
+  chrome_options:
+    - "--disable-blink-features=AutomationControlled"
+    - "--disable-dev-shm-usage"
+    - "--no-sandbox"
+    - "--disable-gpu"
+    - "--window-size=1920,1080"
+    - "--start-maximized"
+
+  # User agent customizado (opcional)
+  user_agent: ""
+
+  # Download directory
+  download_dir: "./data/downloads"
+
+# ==========================================
+# CERTIFICADO DIGITAL
+# ==========================================
+certificate:
+  # Método de auto-seleção (registry/pywinauto/manual)
+  autoselect_method: registry
+
+  # Timeout para popup de certificado (segundos)
+  popup_timeout: 15
+
+  # Tentativas de seleção
+  max_attempts: 3
+
+  # Registry settings (Windows)
+  registry:
+    chrome_policy_path: "HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Google\\Chrome"
+    edge_policy_path: "HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Edge"
+
+  # PyWinAuto settings
+  pywinauto:
+    backend: "uia"  # uia ou win32
+    window_title_regex: ".*[Cc]ertificado.*"
+    button_ok_name: "OK"
+
+# ==========================================
+# PROCESSAMENTO
+# ==========================================
+processing:
+  # Processar apenas mensagens novas
+  only_new_messages: true
+
+  # Marcar mensagens como lidas após processamento
+  mark_as_read: false
+
+  # Download de anexos
+  download_attachments: true
+
+  # Delay entre ações (segundos) - humanizar
+  action_delay: 1.5
+
+  # Delay aleatório (range em segundos)
+  random_delay_range:
+    min: 0.5
+    max: 2.0
+
+# ==========================================
+# RETRY LOGIC
+# ==========================================
+retry:
+  # Tentativas máximas
+  max_attempts: 3
+
+  # Delay inicial entre tentativas (segundos)
+  initial_delay: 5
+
+  # Multiplicador de backoff (exponencial)
+  backoff_multiplier: 2
+
+  # Delay máximo (segundos)
+  max_delay: 30
+
+  # Erros que devem acionar retry
+  retryable_errors:
+    - "TimeoutException"
+    - "ElementNotInteractableException"
+    - "StaleElementReferenceException"
+    - "ConnectionError"
+
+# ==========================================
+# LOGGING
+# ==========================================
+logging:
+  # Nível de log (DEBUG/INFO/WARNING/ERROR/CRITICAL)
+  level: INFO
+
+  # Formato de log
+  format: "{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} - {message}"
+
+  # Rotação de logs
+  rotation:
+    size: "10 MB"
+    time: "1 week"
+    retention: "1 month"
+
+  # Logs de diferentes módulos
+  modules:
+    auth: INFO
+    navigation: INFO
+    extraction: INFO
+    database: WARNING
+
+  # Salvar screenshots em caso de erro
+  save_error_screenshots: true
+  screenshot_dir: "./logs/screenshots"
+
+# ==========================================
+# BANCO DE DADOS
+# ==========================================
+database:
+  # Criar tabelas automaticamente
+  auto_create_tables: true
+
+  # Pool de conexões
+  pool_size: 5
+  max_overflow: 10
+
+  # Echo SQL (debug)
+  echo: false
+
+# ==========================================
+# EXPORTAÇÃO
+# ==========================================
+export:
+  # Diretório padrão
+  output_dir: "./data/exports"
+
+  # Formato de arquivo
+  default_format: excel
+
+  # Incluir timestamp no nome do arquivo
+  include_timestamp: true
+
+  # Padrão de nome de arquivo
+  filename_pattern: "{date}_{cnpj}_mensagens.{ext}"
+
+  # Configurações Excel
+  excel:
+    sheet_name: "Mensagens DET"
+    auto_filter: true
+    freeze_panes: "A2"
+
+  # Configurações CSV
+  csv:
+    delimiter: ";"
+    encoding: "utf-8-sig"
+
+# ==========================================
+# NOTIFICAÇÕES
+# ==========================================
+notifications:
+  # Ativar notificações
+  enabled: false
+
+  # Canais de notificação
+  channels:
+    email: true
+    telegram: false
+    webhook: false
+
+  # Email settings
+  email:
+    subject_prefix: "[DET]"
+    template: "default"
+    attach_report: true
+
+  # Telegram settings
+  telegram:
+    parse_mode: "HTML"
+    disable_notification: false
+
+  # Webhook settings
+  webhook:
+    url: ""
+    method: "POST"
+    headers:
+      Content-Type: "application/json"
+
+# ==========================================
+# AGENDAMENTO
+# ==========================================
+scheduling:
+  # Ativar agendamento
+  enabled: false
+
+  # Tipo (simple/advanced)
+  type: simple
+
+  # Simple schedule
+  simple:
+    time: "09:00"
+    days: [0, 1, 2, 3, 4]  # Segunda a sexta
+
+  # Advanced schedule (cron-like)
+  advanced:
+    cron: "0 9 * * 1-5"
+
+  # Executar na inicialização
+  run_on_startup: false
+
+# ==========================================
+# SEGURANÇA
+# ==========================================
+security:
+  # Timeout máximo de execução (minutos)
+  max_execution_time: 60
+
+  # Validar certificados SSL
+  verify_ssl: true
+
+  # Criptografar exports
+  encrypt_exports: false
+
+  # Senha de criptografia (se encrypt_exports = true)
+  encryption_password: ""
+
+# ==========================================
+# DESENVOLVIMENTO
+# ==========================================
+development:
+  # Modo debug
+  debug: false
+
+  # Pausar entre passos (debug)
+  step_by_step: false
+
+  # Salvar HTML das páginas
+  save_page_html: false
+
+  # Diretório de debug
+  debug_dir: "./logs/debug"

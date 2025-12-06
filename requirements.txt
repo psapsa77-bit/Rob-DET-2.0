@@ -1,0 +1,74 @@
+# ============================================
+# Rob-DET 2.0 - Dependências do Projeto
+# ============================================
+
+# Core - Automação Web
+selenium>=4.15.0
+webdriver-manager>=4.0.1
+undetected-chromedriver>=3.5.4  # Anti-detecção de bot
+
+# Automação Windows (Certificado Digital)
+pywinauto>=0.6.8
+pyautogui>=0.9.54
+pillow>=10.1.0  # Suporte a reconhecimento de imagem
+
+# Gerenciamento de Certificados
+cryptography>=41.0.7
+pyOpenSSL>=23.3.0
+
+# Configuração e Dados
+python-dotenv>=1.0.0
+pydantic>=2.5.2
+pydantic-settings>=2.1.0
+PyYAML>=6.0.1
+
+# Logging e Monitoramento
+loguru>=0.7.2
+rich>=13.7.0  # Terminal output formatado
+
+# Banco de Dados
+SQLAlchemy>=2.0.23
+alembic>=1.13.0  # Migrations
+
+# Manipulação de Dados
+pandas>=2.1.4
+openpyxl>=3.1.2  # Excel
+xlsxwriter>=3.1.9
+
+# Agendamento
+schedule>=1.2.0
+APScheduler>=3.10.4
+
+# Segurança
+keyring>=24.3.0  # Armazenamento seguro de senhas
+python-jose[cryptography]>=3.3.0  # JWT (opcional)
+
+# HTTP Requests (complementar ao Selenium)
+requests>=2.31.0
+httpx>=0.25.2
+
+# Parsing HTML
+beautifulsoup4>=4.12.2
+lxml>=4.9.4
+
+# Utilitários
+python-dateutil>=2.8.2
+pytz>=2023.3.post1
+tqdm>=4.66.1  # Progress bars
+
+# Desenvolvimento e Testes (opcional)
+# pytest>=7.4.3
+# pytest-cov>=4.1.0
+# pytest-mock>=3.12.0
+# black>=23.12.1
+# flake8>=6.1.0
+# mypy>=1.7.1
+
+# Notificações (opcional)
+# python-telegram-bot>=20.7  # Telegram
+# sendgrid>=6.11.0           # Email via SendGrid
+# smtplib  # Built-in para email SMTP
+
+# Monitoramento (opcional)
+# sentry-sdk>=1.39.1
+# prometheus-client>=0.19.0

@@ -1,0 +1,230 @@
+# ============================================
+# Rob-DET 2.0 - Git Ignore
+# ============================================
+
+# ==========================================
+# SEGURANÇA - NUNCA COMMITAR
+# ==========================================
+# Certificados digitais
+*.pfx
+*.p12
+*.pem
+*.key
+certs/
+
+# Variáveis de ambiente
+.env
+.env.local
+.env.*.local
+
+# Senhas e credenciais
+passwords.txt
+credentials.json
+secrets/
+
+# ==========================================
+# PYTHON
+# ==========================================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
+env.bak/
+venv.bak/
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# ==========================================
+# LOGS E DADOS
+# ==========================================
+logs/
+*.log
+*.log.*
+log/
+
+# Dados locais
+data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Exports
+exports/
+*.xlsx
+*.csv
+*.json
+
+# Screenshots
+screenshots/
+*.png
+*.jpg
+*.jpeg
+
+# ==========================================
+# IDE / EDITOR
+# ==========================================
+# VSCode
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+*.iml
+*.iws
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# ==========================================
+# SISTEMA OPERACIONAL
+# ==========================================
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# ==========================================
+# SELENIUM / BROWSER DRIVERS
+# ==========================================
+chromedriver.exe
+chromedriver
+geckodriver.exe
+geckodriver
+msedgedriver.exe
+msedgedriver
+
+# ==========================================
+# TEMPORÁRIOS
+# ==========================================
+tmp/
+temp/
+*.tmp
+*.bak
+*.backup
+.cache/
+
+# ==========================================
+# DOCUMENTAÇÃO (gerada automaticamente)
+# ==========================================
+docs/_build/
+site/
+
+# ==========================================
+# CONFIGURAÇÕES LOCAIS
+# ==========================================
+config/local.yaml
+config/clients.yaml  # Contém CNPJs sensíveis
+config/*.local.yaml
