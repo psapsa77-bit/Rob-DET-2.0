@@ -1,300 +1,434 @@
 #!/usr/bin/env python3
 """
-Rob-DET 2.0 - Robô de Automação DET (Domicílio Eletrônico Trabalhista)
+Rob-DET 2.0 - Robô de Automação do Portal DET
+Script Principal
 
-Ponto de entrada principal da aplicação.
+Executa consultas automatizadas ao Portal DET (Domicílio Eletrônico Trabalhista).
 """
 
 import sys
-import argparse
+import time
+import json
 from pathlib import Path
 from typing import List, Optional
-
-# Adicionar src ao path
-sys.path.insert(0, str(Path(__file__).parent / 'src'))
-
+from datetime import datetime
 from loguru import logger
-from rich.console import Console
-from rich.table import Table
-from rich.panel import Panel
 
-from src.utils.config import load_config, ClientConfig
-from src.utils.logger import setup_logging, log_step, log_success, log_warning
-from src.auth.cert_manager import CertificateManager
+from src.config_manager import get_config, ConfigManager
 from src.navigation.det_navigator import DETNavigator
-from src.extraction.message_extractor import MessageExtractor
+from src.det_scraper import DETScraper
+from src.models import Cliente
+from src.reports.report_generator import ReportGenerator
+from src.notifications import EmailNotifier
+from src.monitoring import Monitor
 
-console = Console()
 
-
-def print_banner():
-    """Exibe banner da aplicação."""
-    banner = """
-    ╔═══════════════════════════════════════════════════════════════╗
-    ║                                                               ║
-    ║                    🤖 ROB-DET 2.0                             ║
-    ║                                                               ║
-    ║        Robô de Automação do Portal DET                       ║
-    ║        Domicílio Eletrônico Trabalhista                      ║
-    ║                                                               ║
-    ║        Versão: 2.0.0-alpha                                   ║
-    ║                                                               ║
-    ╚═══════════════════════════════════════════════════════════════╝
+class RoboDET:
     """
-    console.print(banner, style="bold cyan")
+    Classe principal do robô DET.
 
-
-def process_client(
-    client: ClientConfig,
-    navigator: DETNavigator,
-    config: any
-) -> dict:
+    Orquestra navegação, scraping, relatórios e notificações.
     """
-    Processa um cliente específico.
 
-    Args:
-        client: Configuração do cliente
-        navigator: Navegador DET
-        config: Configuração global
+    def __init__(self, config: Optional[ConfigManager] = None):
+        """
+        Inicializa o robô.
 
-    Returns:
-        Dicionário com resultado do processamento
-    """
-    result = {
-        'cnpj': client.cnpj,
-        'razao_social': client.razao_social,
-        'success': False,
-        'messages_count': 0,
-        'new_messages_count': 0,
-        'error': None
-    }
+        Args:
+            config: Gerenciador de configurações (opcional)
+        """
+        self.config = config or get_config()
+        self._configurar_logs()
 
-    try:
-        log_step(
-            f"Processando cliente: {client.razao_social}",
-            f"CNPJ: {client.cnpj} | Prioridade: {client.priority}"
-        )
+        self.navigator: Optional[DETNavigator] = None
+        self.scraper: Optional[DETScraper] = None
+        self.notifier = EmailNotifier(self.config)
+        self.monitor = Monitor(self.config)
 
-        # Selecionar CNPJ (se necessário)
-        # TODO: Implementar seleção via procuração
-        # navigator.select_cnpj(client.cnpj)
+        # Controle de reinicialização
+        self._tentativas_reinicializacao = 0
 
-        # Navegar para Caixa Postal
-        if not navigator.navigate_to_mailbox():
-            result['error'] = 'Falha ao navegar para Caixa Postal'
-            return result
+        logger.info("═" * 60)
+        logger.info("ROB-DET 2.0 - Robô de Automação do Portal DET")
+        logger.info("═" * 60)
 
-        # Extrair mensagens
-        extractor = MessageExtractor(navigator.driver)
-        messages = extractor.extract_messages(only_new=config.app.debug)
+    def _configurar_logs(self) -> None:
+        """Configura sistema de logs com loguru."""
+        # Remover handler padrão
+        logger.remove()
 
-        result['messages_count'] = len(messages)
-        result['new_messages_count'] = sum(1 for m in messages if m.is_new())
-        result['success'] = True
-
-        log_success(
-            f"Cliente {client.razao_social} processado - "
-            f"{result['new_messages_count']} mensagens novas de {result['messages_count']}"
-        )
-
-        # TODO: Exportar dados, notificar, etc.
-
-        return result
-
-    except Exception as e:
-        logger.error(f"Erro ao processar cliente {client.razao_social}: {e}")
-        result['error'] = str(e)
-        return result
-
-
-def main(args):
-    """
-    Função principal da aplicação.
-
-    Args:
-        args: Argumentos da linha de comando
-    """
-    try:
-        # Banner
-        print_banner()
-
-        # Carregar configuração
-        log_step("Carregando configurações")
-        config = load_config()
-
-        # Configurar logging
-        setup_logging(
-            log_file=config.app.log_file if not args.no_log else None,
-            log_level=config.app.log_level if not args.debug else 'DEBUG',
-            console_output=True
-        )
-
-        logger.info(f"Configuração carregada: {len(config.clients)} clientes")
-
-        # Carregar certificado digital
-        log_step("Carregando certificado digital")
-
-        try:
-            cert_manager = CertificateManager(
-                cert_path=config.app.cert_path,
-                use_keyring=config.app.use_keyring,
-                keyring_service=config.app.keyring_service
+        # Console (se ativado)
+        if self.config.logs.log_para_console:
+            logger.add(
+                sys.stderr,
+                format=self.config.logs.formato,
+                level=self.config.logs.nivel,
+                colorize=self.config.logs.colorir_console
             )
 
-            cert_info = cert_manager.get_info()
-            logger.info(f"Certificado: {cert_info['subject_cn']}")
-            logger.info(f"Validade: {cert_info['valid_from']} até {cert_info['valid_to']}")
+        # Arquivo (se ativado)
+        if self.config.logs.log_para_arquivo:
+            log_path = Path(self.config.logs.arquivo)
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+
+            logger.add(
+                str(log_path),
+                format=self.config.logs.formato,
+                level=self.config.logs.nivel,
+                rotation=f"{self.config.logs.max_size_mb} MB",
+                retention=self.config.logs.backup_count,
+                compression="zip",
+                encoding="utf-8"
+            )
+
+        logger.info("Sistema de logs configurado")
+
+    def carregar_clientes(self) -> List[Cliente]:
+        """
+        Carrega lista de clientes do arquivo de configuração.
+
+        Returns:
+            Lista de clientes ativos
+        """
+        try:
+            clientes_file = Path("config/clientes.json")
+
+            if not clientes_file.exists():
+                logger.warning(f"Arquivo não encontrado: {clientes_file}")
+                logger.info("Usando cliente de exemplo")
+                return [
+                    Cliente(
+                        cnpj="12.345.678/0001-90",
+                        razao_social="Empresa Exemplo Ltda"
+                    )
+                ]
+
+            with open(clientes_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+
+            clientes = [Cliente(**c) for c in data.get('clientes', [])]
+
+            # Filtrar apenas ativos
+            clientes_ativos = [c for c in clientes if c.ativo]
+
+            logger.info(f"✓ {len(clientes_ativos)} cliente(s) carregado(s)")
+
+            # Ordenar por prioridade
+            ordem_prioridade = {"alta": 0, "normal": 1, "baixa": 2}
+            clientes_ativos.sort(key=lambda c: ordem_prioridade.get(c.prioridade, 1))
+
+            return clientes_ativos
+
+        except json.JSONDecodeError as e:
+            logger.error(f"Erro ao parsear JSON de clientes: {e}")
+            return []
 
         except Exception as e:
-            logger.error(f"Falha ao carregar certificado: {e}")
-            logger.info("\nConfigure o certificado:")
-            logger.info("1. Copie o arquivo .pfx para a pasta certs/")
-            logger.info("2. Configure CERT_PATH no arquivo .env")
-            logger.info("3. Configure a senha usando keyring ou CERT_PASSWORD")
-            return 1
+            logger.error(f"Erro ao carregar clientes: {e}")
+            return []
 
-        # Determinar clientes a processar
-        if args.cnpj:
-            # Cliente específico
-            client = config.get_client_by_cnpj(args.cnpj)
-            if not client:
-                logger.error(f"Cliente não encontrado: {args.cnpj}")
-                return 1
-            clients_to_process = [client]
-        else:
-            # Todos os clientes ativos
-            clients_to_process = config.get_active_clients()
+    def inicializar_navegador(self) -> bool:
+        """
+        Inicializa navegador e scraper.
 
-        if not clients_to_process:
-            logger.warning("Nenhum cliente ativo para processar")
-            return 0
+        Returns:
+            True se inicializado com sucesso
+        """
+        try:
+            logger.info("Inicializando navegador...")
 
-        logger.info(f"Clientes a processar: {len(clients_to_process)}")
+            # Configurar opções do Chrome
+            headless = self.config.chrome.headless
+            download_path = self.config.chrome.download_path
 
-        # Iniciar navegador
-        log_step("Iniciando navegador")
+            # Criar navigator
+            self.navigator = DETNavigator(
+                browser='chrome',
+                headless=headless,
+                download_path=download_path
+            )
 
-        with DETNavigator(
-            browser=config.app.browser,
-            headless=config.app.headless and not args.no_headless,
-            timeout=config.app.default_timeout
-        ) as navigator:
+            self.navigator.start()
 
-            # Login no DET
-            log_step("Realizando login no DET")
+            # Criar scraper
+            timeout = self.config.execucao.timeout_por_cliente
+            self.scraper = DETScraper(
+                navigator=self.navigator,
+                timeout=timeout
+            )
 
-            if not navigator.login_with_certificate():
+            logger.success("✓ Navegador inicializado")
+            return True
+
+        except Exception as e:
+            logger.error(f"Erro ao inicializar navegador: {e}")
+            return False
+
+    def finalizar_navegador(self) -> None:
+        """Finaliza navegador."""
+        if self.navigator:
+            try:
+                self.navigator.stop()
+                logger.info("Navegador finalizado")
+            except Exception as e:
+                logger.warning(f"Erro ao finalizar navegador: {e}")
+
+        self.navigator = None
+        self.scraper = None
+
+    def executar(self) -> bool:
+        """
+        Executa consulta completa para todos os clientes.
+
+        Returns:
+            True se executado com sucesso
+        """
+        inicio = time.time()
+        erros = []
+
+        try:
+            # Atualizar status
+            self.monitor.set_status("running")
+
+            logger.info("\n" + "━" * 60)
+            logger.info("INICIANDO EXECUÇÃO")
+            logger.info("━" * 60)
+
+            # 1. Carregar clientes
+            clientes = self.carregar_clientes()
+
+            if not clientes:
+                logger.error("Nenhum cliente para consultar")
+                return False
+
+            logger.info(f"Total de clientes: {len(clientes)}")
+
+            # 2. Inicializar navegador
+            if not self.inicializar_navegador():
+                logger.error("Falha ao inicializar navegador")
+                return False
+
+            # 3. Login
+            logger.info("\n📝 Realizando login...")
+
+            if not self.scraper.login():
                 logger.error("Falha no login")
-                logger.info("\nVerifique:")
-                logger.info("1. Certificado está configurado corretamente")
-                logger.info("2. Auto-seleção via Registry está configurada (ou use PyWinAuto)")
-                logger.info("3. Certificado é válido para o portal DET")
-                return 1
+                self.finalizar_navegador()
 
-            # Processar clientes
-            results = []
+                if self.config.recuperacao.reiniciar_apos_falha:
+                    return self._tentar_recuperacao()
 
-            for i, client in enumerate(clients_to_process, 1):
-                logger.info(f"\n{'=' * 60}")
-                logger.info(f"Cliente {i}/{len(clients_to_process)}")
-                logger.info(f"{'=' * 60}")
+                return False
 
-                result = process_client(client, navigator, config)
-                results.append(result)
+            # 4. Consultar cada cliente
+            relatorios = []
 
-                # Delay entre clientes
-                if i < len(clients_to_process):
-                    import time
-                    delay = config.get_setting('processing.action_delay', 2.0)
-                    logger.info(f"Aguardando {delay}s antes do próximo cliente...")
-                    time.sleep(delay)
+            for idx, cliente in enumerate(clientes, 1):
+                try:
+                    logger.info(f"\n[{idx}/{len(clientes)}] Consultando: {cliente.razao_social}")
 
-            # Resumo final
-            log_step("Resumo da Execução")
+                    relatorio = self.scraper.consultar_cliente(
+                        cliente=cliente,
+                        apenas_nao_lidas=self.config.execucao.apenas_nao_lidas
+                    )
 
-            table = Table(title="Resultados")
-            table.add_column("Cliente", style="cyan")
-            table.add_column("CNPJ", style="yellow")
-            table.add_column("Mensagens", justify="right", style="green")
-            table.add_column("Novas", justify="right", style="red")
-            table.add_column("Status", justify="center")
+                    relatorios.append(relatorio)
 
-            for result in results:
-                status = "✓" if result['success'] else "✗"
-                status_color = "green" if result['success'] else "red"
+                    # Delay entre clientes
+                    if idx < len(clientes):
+                        delay = self.config.execucao.delay_entre_clientes
+                        logger.debug(f"Aguardando {delay}s antes do próximo cliente...")
+                        time.sleep(delay)
 
-                table.add_row(
-                    result['razao_social'],
-                    result['cnpj'],
-                    str(result['messages_count']),
-                    str(result['new_messages_count']),
-                    f"[{status_color}]{status}[/{status_color}]"
+                except Exception as e:
+                    logger.error(f"Erro ao consultar {cliente.razao_social}: {e}")
+                    erros.append(f"{cliente.razao_social}: {str(e)}")
+                    continue
+
+            # 5. Gerar relatórios
+            if relatorios:
+                self._gerar_relatorios(relatorios)
+
+            # 6. Registrar métricas
+            tempo_total = time.time() - inicio
+            metrica = self.monitor.registrar_execucao(
+                relatorios=relatorios,
+                tempo_total=tempo_total,
+                erros=erros
+            )
+
+            # 7. Enviar notificações
+            self._enviar_notificacoes(relatorios, tempo_total, erros)
+
+            # 8. Resumo final
+            self._imprimir_resumo_final(relatorios, tempo_total)
+
+            # Sucesso se pelo menos um cliente foi consultado
+            sucesso = any(r.sucesso for r in relatorios)
+
+            return sucesso
+
+        except Exception as e:
+            logger.error(f"Erro crítico durante execução: {e}")
+            logger.exception(e)
+
+            # Capturar screenshot se possível
+            if self.config.recuperacao.screenshot_em_erro and self.navigator:
+                try:
+                    screenshot_path = Path("screenshots") / f"erro_critico_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+                    self.navigator.driver.save_screenshot(str(screenshot_path))
+                    logger.info(f"Screenshot salvo: {screenshot_path}")
+                except:
+                    pass
+
+            # Enviar alerta de erro
+            self.notifier.enviar_alerta_erro(
+                titulo="Erro Crítico na Execução",
+                mensagem=str(e),
+                detalhes=None
+            )
+
+            return False
+
+        finally:
+            # Sempre finalizar navegador
+            self.finalizar_navegador()
+
+            # Atualizar status
+            self.monitor.set_status("idle")
+
+    def _tentar_recuperacao(self) -> bool:
+        """
+        Tenta recuperar de falha reinicializando.
+
+        Returns:
+            True se recuperado com sucesso
+        """
+        if self._tentativas_reinicializacao >= self.config.recuperacao.max_reinicializacoes:
+            logger.error("Máximo de tentativas de reinicialização atingido")
+            return False
+
+        self._tentativas_reinicializacao += 1
+        delay = self.config.recuperacao.delay_reinicializacao_segundos
+
+        logger.warning(
+            f"⚠️  Tentando recuperar... "
+            f"(Tentativa {self._tentativas_reinicializacao}/"
+            f"{self.config.recuperacao.max_reinicializacoes})"
+        )
+        logger.info(f"Aguardando {delay}s antes de reiniciar...")
+
+        time.sleep(delay)
+
+        # Tentar novamente
+        return self.executar()
+
+    def _gerar_relatorios(self, relatorios) -> None:
+        """Gera relatórios em múltiplos formatos."""
+        try:
+            logger.info("\n📊 Gerando relatórios...")
+
+            generator = ReportGenerator(config=self.config)
+
+            # Excel
+            if self.config.relatorios.gerar_excel:
+                excel_path = generator.gerar_relatorio_excel(relatorios)
+                if excel_path:
+                    logger.success(f"✓ Excel: {excel_path}")
+
+            # CSV
+            if self.config.relatorios.gerar_csv:
+                csv_path = generator.gerar_relatorio_csv(relatorios)
+                if csv_path:
+                    logger.success(f"✓ CSV: {csv_path}")
+
+            # JSON
+            if self.config.relatorios.gerar_json:
+                json_path = generator.gerar_relatorio_json(relatorios)
+                if json_path:
+                    logger.success(f"✓ JSON: {json_path}")
+
+        except Exception as e:
+            logger.error(f"Erro ao gerar relatórios: {e}")
+
+    def _enviar_notificacoes(self, relatorios, tempo_total, erros) -> None:
+        """Envia notificações por email."""
+        try:
+            if not self.config.notificacoes.email_ativo:
+                return
+
+            logger.info("\n📧 Enviando notificações...")
+
+            # Alerta de mensagens urgentes
+            if self.config.notificacoes.email_enviar_apenas_urgentes:
+                self.notifier.enviar_alerta_mensagens_urgentes(relatorios)
+
+            # Resumo da execução
+            if self.config.notificacoes.email_enviar_resumo_diario:
+                self.notifier.enviar_resumo_execucao(
+                    relatorios=relatorios,
+                    tempo_total=tempo_total,
+                    erros=erros
                 )
 
-            console.print(table)
+        except Exception as e:
+            logger.error(f"Erro ao enviar notificações: {e}")
 
-            # Estatísticas gerais
-            total_clients = len(results)
-            successful = sum(1 for r in results if r['success'])
-            total_messages = sum(r['messages_count'] for r in results)
-            total_new = sum(r['new_messages_count'] for r in results)
+    def _imprimir_resumo_final(self, relatorios, tempo_total) -> None:
+        """Imprime resumo final da execução."""
+        total_clientes = len(relatorios)
+        clientes_sucesso = sum(1 for r in relatorios if r.sucesso)
+        total_mensagens = sum(r.total_mensagens for r in relatorios)
+        total_novas = sum(r.mensagens_novas for r in relatorios)
+        total_urgentes = sum(r.mensagens_urgentes for r in relatorios)
 
-            stats = f"""
-            Clientes processados: {successful}/{total_clients}
-            Total de mensagens: {total_messages}
-            Mensagens novas: {total_new}
-            """
+        logger.info("\n" + "═" * 60)
+        logger.info("RESUMO FINAL")
+        logger.info("═" * 60)
+        logger.info(f"Clientes consultados:  {clientes_sucesso}/{total_clientes}")
+        logger.info(f"Total de mensagens:    {total_mensagens}")
+        logger.info(f"Mensagens novas:       {total_novas}")
+        logger.info(f"Mensagens urgentes:    {total_urgentes}")
+        logger.info(f"Tempo total:           {tempo_total:.1f}s")
+        logger.info("═" * 60)
 
-            console.print(Panel(stats, title="Estatísticas", border_style="green"))
+        if clientes_sucesso == total_clientes:
+            logger.success("✓ Execução concluída com SUCESSO!")
+        elif clientes_sucesso > 0:
+            logger.warning("⚠ Execução concluída com SUCESSO PARCIAL")
+        else:
+            logger.error("❌ Execução FALHOU para todos os clientes")
 
-            log_success("Execução concluída!")
 
-        return 0
+def main():
+    """Função principal."""
+    try:
+        # Criar robô
+        robo = RoboDET()
+
+        # Iniciar heartbeat
+        robo.monitor.iniciar_heartbeat()
+
+        try:
+            # Executar
+            sucesso = robo.executar()
+
+            # Retornar código de saída
+            sys.exit(0 if sucesso else 1)
+
+        finally:
+            # Parar heartbeat
+            robo.monitor.parar_heartbeat()
 
     except KeyboardInterrupt:
-        logger.warning("\n⚠️ Execução interrompida pelo usuário")
-        return 130
+        logger.warning("\n🛑 Interrompido pelo usuário")
+        sys.exit(130)
 
     except Exception as e:
-        logger.exception(f"Erro fatal: {e}")
-        return 1
+        logger.error(f"Erro fatal: {e}")
+        logger.exception(e)
+        sys.exit(1)
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(
-        description='Rob-DET 2.0 - Robô de Automação DET',
-        formatter_class=argparse.RawDescriptionHelpFormatter
-    )
-
-    parser.add_argument(
-        '--cnpj',
-        help='CNPJ específico para processar (caso contrário, processa todos)'
-    )
-
-    parser.add_argument(
-        '--debug',
-        action='store_true',
-        help='Ativar modo debug (log detalhado)'
-    )
-
-    parser.add_argument(
-        '--no-headless',
-        action='store_true',
-        help='Forçar navegador visível (mesmo se configurado headless)'
-    )
-
-    parser.add_argument(
-        '--no-log',
-        action='store_true',
-        help='Não salvar logs em arquivo'
-    )
-
-    parser.add_argument(
-        '--only-new',
-        action='store_true',
-        help='Processar apenas mensagens novas'
-    )
-
-    args = parser.parse_args()
-
-    sys.exit(main(args))
+    main()

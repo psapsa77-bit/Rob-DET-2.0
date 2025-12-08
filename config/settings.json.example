@@ -1,0 +1,70 @@
+{
+  "execucao": {
+    "horarios": ["08:00", "14:00", "18:00"],
+    "dias_semana": [0, 1, 2, 3, 4],
+    "timeout_por_cliente": 180,
+    "max_tentativas": 3,
+    "delay_entre_clientes": 2.0,
+    "apenas_nao_lidas": true,
+    "extrair_detalhes_completos": false,
+    "download_anexos": false
+  },
+  "chrome": {
+    "headless": false,
+    "download_path": "./downloads",
+    "window_size": "1920,1080",
+    "user_agent": "",
+    "disable_images": false,
+    "page_load_timeout": 60
+  },
+  "notificacoes": {
+    "email_ativo": false,
+    "email_servidor": "smtp.gmail.com",
+    "email_porta": 587,
+    "email_remetente": "robo.det@empresa.com",
+    "email_senha": "",
+    "email_destinatarios": [
+      "gestor@empresa.com",
+      "ti@empresa.com"
+    ],
+    "email_enviar_apenas_urgentes": false,
+    "email_enviar_resumo_diario": true,
+    "whatsapp_ativo": false,
+    "whatsapp_api_url": "",
+    "whatsapp_token": ""
+  },
+  "logs": {
+    "nivel": "INFO",
+    "formato": "{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} - {message}",
+    "arquivo": "logs/robo_det.log",
+    "max_size_mb": 10,
+    "backup_count": 5,
+    "colorir_console": true,
+    "log_para_arquivo": true,
+    "log_para_console": true
+  },
+  "monitoramento": {
+    "heartbeat_ativo": true,
+    "heartbeat_intervalo_segundos": 300,
+    "heartbeat_arquivo": "logs/heartbeat.json",
+    "metricas_ativo": true,
+    "metricas_arquivo": "logs/metricas.json",
+    "alerta_taxa_falha_acima": 0.3,
+    "alerta_tempo_execucao_acima": 600
+  },
+  "recuperacao": {
+    "reiniciar_apos_falha": true,
+    "max_reinicializacoes": 3,
+    "delay_reinicializacao_segundos": 60,
+    "screenshot_em_erro": true,
+    "salvar_html_em_erro": false
+  },
+  "relatorios": {
+    "gerar_excel": true,
+    "gerar_csv": true,
+    "gerar_json": true,
+    "pasta_saida": "./relatorios",
+    "incluir_timestamp": true,
+    "separar_por_data": true
+  }
+}
