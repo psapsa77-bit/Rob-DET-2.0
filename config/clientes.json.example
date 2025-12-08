@@ -1,0 +1,71 @@
+{
+  "clientes": [
+    {
+      "cnpj": "12.345.678/0001-90",
+      "razao_social": "EMPRESA EXEMPLO COMERCIO LTDA",
+      "nome_fantasia": "Exemplo Comércio",
+      "ativo": true,
+      "prioridade": "high",
+      "email_notificacao": "contato@empresa-exemplo.com.br",
+      "observacoes": "Cliente com histórico de autuações - verificar mensagens diariamente",
+      "filiais": [
+        "12.345.678/0002-71",
+        "12.345.678/0003-52"
+      ]
+    },
+    {
+      "cnpj": "98.765.432/0001-10",
+      "razao_social": "INDUSTRIA BRASILEIRA SA",
+      "nome_fantasia": "Indústria BR",
+      "ativo": true,
+      "prioridade": "normal",
+      "email_notificacao": "fiscal@industriabr.com.br",
+      "observacoes": "Verificar mensagens semanalmente",
+      "filiais": []
+    },
+    {
+      "cnpj": "11.222.333/0001-44",
+      "razao_social": "SERVICOS PROFISSIONAIS LTDA",
+      "nome_fantasia": "Serviços Pro",
+      "ativo": true,
+      "prioridade": "high",
+      "email_notificacao": "rh@servicospro.com.br",
+      "observacoes": "Grande quantidade de funcionários - alta prioridade",
+      "filiais": [
+        "11.222.333/0002-25"
+      ]
+    },
+    {
+      "cnpj": "55.666.777/0001-88",
+      "razao_social": "EMPRESA INATIVA LTDA",
+      "nome_fantasia": "Inativa",
+      "ativo": false,
+      "prioridade": "low",
+      "email_notificacao": "",
+      "observacoes": "Cliente encerrou atividades em 2024 - não consultar",
+      "filiais": []
+    },
+    {
+      "cnpj": "99.888.777/0001-66",
+      "razao_social": "COMERCIO DE ALIMENTOS EIRELI",
+      "nome_fantasia": "Alimentos & Cia",
+      "ativo": true,
+      "prioridade": "normal",
+      "email_notificacao": "contabilidade@alimentos.com.br",
+      "observacoes": "",
+      "filiais": []
+    }
+  ],
+  "configuracoes": {
+    "consultar_apenas_ativos": true,
+    "ordem_processamento": "priority",
+    "delay_entre_clientes_segundos": 10,
+    "incluir_filiais": true,
+    "notificar_apenas_novas": true,
+    "tipos_mensagem_notificar": [
+      "Autuação",
+      "Intimação",
+      "Notificação"
+    ]
+  }
+}
