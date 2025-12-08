@@ -10,13 +10,9 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 from loguru import logger
 
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
-
 from src.navigation.det_navigator import DETNavigator
-from src.models import Cliente, Mensagem, RelatorioConsulta, TipoMensagem, StatusMensagem
+from src.models import Cliente, Mensagem, RelatorioConsulta, TipoMensagem, StatusMensagem, PrioridadeMensagem
+from src.pages import LoginPage, HomePage, CaixaPostalPage, MensagemDetalhesPage
 
 
 class DETScraper:
@@ -28,34 +24,13 @@ class DETScraper:
     - Navegação entre CNPJs via procuração
     - Extração de mensagens da caixa postal
     - Geração de relatórios
+
+    Utiliza Page Object Model para organização:
+    - LoginPage: Autenticação com certificado
+    - HomePage: Seleção de empresa e navegação
+    - CaixaPostalPage: Listagem de mensagens
+    - MensagemDetalhesPage: Detalhes e anexos
     """
-
-    # URLs importantes
-    URL_BASE = "https://det.sit.trabalho.gov.br/"
-    URL_CAIXA_POSTAL = "https://det.sit.trabalho.gov.br/correspondencia/caixaPostal"
-
-    # Seletores CSS (AJUSTAR conforme HTML real do portal!)
-    SELECTORS = {
-        # Seleção de empresa
-        'dropdown_empresa': 'select[name="empresaSelecionada"]',
-        'opcao_empresa': 'option[value="{cnpj}"]',
-
-        # Caixa postal
-        'tabela_mensagens': 'table.table-mensagens',
-        'linha_mensagem': 'tr.mensagem-item',
-        'checkbox_nao_lida': 'input[name="apenasNaoLidas"]',
-
-        # Campos de mensagem
-        'msg_data': 'td.data-envio',
-        'msg_remetente': 'td.remetente',
-        'msg_assunto': 'td.assunto',
-        'msg_status': 'td.status',
-        'msg_link': 'a.ver-detalhes',
-
-        # Paginação
-        'btn_proxima_pagina': 'button.proxima-pagina',
-        'numero_pagina': 'span.pagina-atual',
-    }
 
     def __init__(
         self,
@@ -79,7 +54,13 @@ class DETScraper:
         self.logged_in = False
         self.current_cnpj: Optional[str] = None
 
-        logger.info("DETScraper inicializado")
+        # Inicializar Page Objects
+        self.login_page = LoginPage(self.driver)
+        self.home_page = HomePage(self.driver)
+        self.caixa_postal_page = CaixaPostalPage(self.driver)
+        self.detalhes_page = MensagemDetalhesPage(self.driver)
+
+        logger.info("DETScraper inicializado com Page Objects")
 
     def login(self) -> bool:
         """
@@ -91,38 +72,20 @@ class DETScraper:
         logger.info("Iniciando login no DET...")
 
         try:
-            # Navegar para página inicial
-            self.navigator.navigate_to(self.URL_BASE)
+            # Utilizar LoginPage para realizar login
+            sucesso = self.login_page.realizar_login()
 
-            # Aguardar processamento do certificado
-            # O certificado deve ser selecionado automaticamente via Registry
-            logger.info("Aguardando seleção automática de certificado...")
-            time.sleep(10)  # Aguardar processamento
-
-            # Verificar se login foi bem-sucedido
-            # AJUSTAR: verificar elemento que confirma login
-            try:
-                # Exemplo: aguardar elemento que só aparece após login
-                WebDriverWait(self.driver, 15).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, "div.usuario-logado"))
-                )
-                logger.success("✓ Login realizado com sucesso!")
+            if sucesso:
                 self.logged_in = True
-                return True
+                logger.success("✓ Login realizado com sucesso!")
+            else:
+                logger.error("❌ Falha no login")
 
-            except TimeoutException:
-                # Tentar verificar pela URL
-                current_url = self.driver.current_url
-                if "login" not in current_url.lower() and "det.sit.trabalho.gov.br" in current_url:
-                    logger.success("✓ Login realizado com sucesso!")
-                    self.logged_in = True
-                    return True
-                else:
-                    logger.error("Login não confirmado")
-                    return False
+            return sucesso
 
         except Exception as e:
             logger.error(f"Erro durante login: {e}")
+            self.login_page.take_screenshot("erro_login")
             return False
 
     def selecionar_empresa(self, cnpj: str) -> bool:
@@ -142,41 +105,21 @@ class DETScraper:
         try:
             logger.info(f"Selecionando empresa: {cnpj}")
 
-            # Normalizar CNPJ (apenas números)
-            cnpj_numeros = ''.join(filter(str.isdigit, cnpj))
+            # Utilizar HomePage para selecionar empresa
+            sucesso = self.home_page.selecionar_empresa(cnpj)
 
-            # Aguardar dropdown de empresa
-            wait = WebDriverWait(self.driver, self.timeout)
-            dropdown = wait.until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, self.SELECTORS['dropdown_empresa']))
-            )
-
-            # Buscar opção do CNPJ
-            opcao_selector = self.SELECTORS['opcao_empresa'].format(cnpj=cnpj_numeros)
-
-            try:
-                opcao = dropdown.find_element(By.CSS_SELECTOR, opcao_selector)
-                opcao.click()
-
-                logger.success(f"✓ Empresa {cnpj} selecionada")
+            if sucesso:
                 self.current_cnpj = cnpj
+                logger.success(f"✓ Empresa {cnpj} selecionada")
+                time.sleep(self.delay)  # Aguardar carregamento
+            else:
+                logger.error(f"❌ Falha ao selecionar empresa {cnpj}")
 
-                # Aguardar carregamento
-                time.sleep(self.delay)
-                return True
-
-            except NoSuchElementException:
-                logger.error(f"CNPJ {cnpj} não encontrado no dropdown")
-                logger.warning("Verifique se você tem procuração para este CNPJ")
-                return False
-
-        except TimeoutException:
-            logger.error("Dropdown de empresas não encontrado")
-            logger.warning("Possível que não há procuração ou estrutura da página mudou")
-            return False
+            return sucesso
 
         except Exception as e:
             logger.error(f"Erro ao selecionar empresa: {e}")
+            self.home_page.take_screenshot(f"erro_selecionar_empresa_{cnpj}")
             return False
 
     def acessar_caixa_postal(self) -> bool:
@@ -189,23 +132,20 @@ class DETScraper:
         try:
             logger.info("Acessando caixa postal...")
 
-            self.navigator.navigate_to(self.URL_CAIXA_POSTAL)
+            # Utilizar HomePage para navegar para caixa postal
+            sucesso = self.home_page.navegar_para_caixa_postal()
 
-            # Aguardar tabela de mensagens carregar
-            wait = WebDriverWait(self.driver, self.timeout)
-            wait.until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, self.SELECTORS['tabela_mensagens']))
-            )
+            if sucesso:
+                logger.success("✓ Caixa postal acessada")
+                time.sleep(self.delay)
+            else:
+                logger.error("❌ Falha ao acessar caixa postal")
 
-            logger.success("✓ Caixa postal carregada")
-            return True
-
-        except TimeoutException:
-            logger.warning("Tabela de mensagens não carregou (pode estar vazia)")
-            return True  # Não é erro crítico, pode estar vazia
+            return sucesso
 
         except Exception as e:
             logger.error(f"Erro ao acessar caixa postal: {e}")
+            self.home_page.take_screenshot("erro_acessar_caixa_postal")
             return False
 
     def filtrar_apenas_nao_lidas(self) -> bool:
@@ -218,20 +158,16 @@ class DETScraper:
         try:
             logger.info("Aplicando filtro: apenas não lidas")
 
-            # Buscar checkbox
-            checkbox = self.driver.find_element(By.CSS_SELECTOR, self.SELECTORS['checkbox_nao_lida'])
+            # Utilizar CaixaPostalPage para aplicar filtro
+            sucesso = self.caixa_postal_page.aplicar_filtro_nao_lidas()
 
-            # Marcar se não estiver marcado
-            if not checkbox.is_selected():
-                checkbox.click()
-                time.sleep(self.delay)  # Aguardar recarregamento
+            if sucesso:
+                logger.success("✓ Filtro aplicado")
+                time.sleep(self.delay)
+            else:
+                logger.warning("⚠️  Filtro não disponível")
 
-            logger.success("✓ Filtro aplicado")
-            return True
-
-        except NoSuchElementException:
-            logger.warning("Checkbox de filtro não encontrado")
-            return False
+            return sucesso
 
         except Exception as e:
             logger.error(f"Erro ao aplicar filtro: {e}")
@@ -256,96 +192,116 @@ class DETScraper:
             if apenas_nao_lidas:
                 self.filtrar_apenas_nao_lidas()
 
-            # Buscar tabela de mensagens
-            try:
-                tabela = self.driver.find_element(By.CSS_SELECTOR, self.SELECTORS['tabela_mensagens'])
-            except NoSuchElementException:
-                logger.warning("Tabela de mensagens não encontrada (caixa vazia?)")
-                return []
+            # Obter total de mensagens
+            total = self.caixa_postal_page.obter_total_mensagens()
+            logger.info(f"Total de mensagens na página: {total}")
 
-            # Buscar linhas de mensagens
-            linhas = tabela.find_elements(By.CSS_SELECTOR, self.SELECTORS['linha_mensagem'])
-
-            if not linhas:
+            if total == 0:
                 logger.info("Nenhuma mensagem encontrada")
                 return []
 
-            logger.info(f"Encontradas {len(linhas)} mensagens")
+            # Extrair dados brutos das mensagens
+            mensagens_raw = self.caixa_postal_page.extrair_mensagens_lista()
 
-            # Processar cada linha
-            for idx, linha in enumerate(linhas, 1):
+            logger.info(f"Encontradas {len(mensagens_raw)} mensagens")
+
+            # Converter para objetos Mensagem
+            for idx, msg_data in enumerate(mensagens_raw, 1):
                 try:
-                    mensagem = self._extrair_mensagem_da_linha(linha, idx)
+                    mensagem = self._converter_para_mensagem(msg_data, idx)
                     if mensagem:
                         mensagens.append(mensagem)
                 except Exception as e:
-                    logger.warning(f"Erro ao processar linha {idx}: {e}")
+                    logger.warning(f"Erro ao processar mensagem {idx}: {e}")
                     continue
 
             logger.success(f"✓ Extraídas {len(mensagens)} mensagens")
 
         except Exception as e:
             logger.error(f"Erro ao extrair mensagens: {e}")
+            self.caixa_postal_page.take_screenshot("erro_extrair_mensagens")
 
         return mensagens
 
-    def _extrair_mensagem_da_linha(self, linha_element, index: int) -> Optional[Mensagem]:
+    def _converter_para_mensagem(self, msg_data: Dict[str, Any], index: int) -> Optional[Mensagem]:
         """
-        Extrai dados de uma mensagem a partir de uma linha da tabela.
+        Converte dados brutos extraídos para objeto Mensagem.
 
         Args:
-            linha_element: Elemento HTML da linha
-            index: Índice da linha (para ID temporário)
+            msg_data: Dicionário com dados da mensagem
+            index: Índice da mensagem
 
         Returns:
-            Mensagem extraída ou None se erro
+            Objeto Mensagem ou None se erro
         """
         try:
-            # Extrair campos (AJUSTAR seletores conforme HTML real!)
-            data_text = linha_element.find_element(By.CSS_SELECTOR, self.SELECTORS['msg_data']).text.strip()
-            remetente = linha_element.find_element(By.CSS_SELECTOR, self.SELECTORS['msg_remetente']).text.strip()
-            assunto = linha_element.find_element(By.CSS_SELECTOR, self.SELECTORS['msg_assunto']).text.strip()
+            # Parsear data de envio
+            data_envio = datetime.now()
+            if msg_data.get('data_envio'):
+                try:
+                    # Tentar diferentes formatos de data
+                    data_text = msg_data['data_envio']
+                    for formato in ["%d/%m/%Y", "%d/%m/%Y %H:%M", "%Y-%m-%d"]:
+                        try:
+                            data_envio = datetime.strptime(data_text, formato)
+                            break
+                        except:
+                            continue
+                except:
+                    pass
 
-            # Status (lida/não lida)
-            try:
-                status_text = linha_element.find_element(By.CSS_SELECTOR, self.SELECTORS['msg_status']).text.strip().lower()
-                status = StatusMensagem.LIDA if 'lida' in status_text else StatusMensagem.NAO_LIDA
-            except:
-                status = StatusMensagem.NAO_LIDA  # Padrão
+            # Parsear prazo de resposta
+            prazo_resposta = None
+            if msg_data.get('prazo_resposta'):
+                try:
+                    prazo_text = msg_data['prazo_resposta']
+                    for formato in ["%d/%m/%Y", "%d/%m/%Y %H:%M", "%Y-%m-%d"]:
+                        try:
+                            prazo_resposta = datetime.strptime(prazo_text, formato)
+                            break
+                        except:
+                            continue
+                except:
+                    pass
 
-            # Link para detalhes
-            try:
-                link_element = linha_element.find_element(By.CSS_SELECTOR, self.SELECTORS['msg_link'])
-                url_detalhes = link_element.get_attribute('href')
-            except:
-                url_detalhes = None
-
-            # Parsear data
-            # AJUSTAR formato conforme portal
-            try:
-                data_envio = datetime.strptime(data_text, "%d/%m/%Y")
-            except:
-                data_envio = datetime.now()
+            # Determinar status
+            status = StatusMensagem.NAO_LIDA
+            if msg_data.get('status'):
+                status_text = msg_data['status'].lower()
+                if 'lida' in status_text:
+                    status = StatusMensagem.LIDA
 
             # Classificar tipo de mensagem
+            assunto = msg_data.get('assunto', '')
             tipo = self._classificar_tipo_mensagem(assunto)
+
+            # Determinar prioridade
+            prioridade = PrioridadeMensagem.NORMAL
+            if msg_data.get('urgente') or msg_data.get('prioridade_alta'):
+                prioridade = PrioridadeMensagem.URGENTE
+            elif tipo in [TipoMensagem.INTIMACAO, TipoMensagem.AUTUACAO]:
+                prioridade = PrioridadeMensagem.ALTA
 
             # Criar mensagem
             mensagem = Mensagem(
                 id=f"det_{self.current_cnpj}_{index}_{int(time.time())}",
                 cnpj_destinatario=self.current_cnpj or "",
                 data_envio=data_envio,
-                remetente=remetente,
+                remetente=msg_data.get('remetente', ''),
                 assunto=assunto,
                 tipo=tipo,
                 status=status,
-                url_detalhes=url_detalhes
+                prioridade=prioridade,
+                prazo_resposta=prazo_resposta,
+                numero_processo=msg_data.get('numero_processo', ''),
+                possui_anexo=msg_data.get('possui_anexo', False),
+                url_detalhes=msg_data.get('url_detalhes', '')
             )
 
             return mensagem
 
         except Exception as e:
-            logger.error(f"Erro ao extrair mensagem: {e}")
+            logger.error(f"Erro ao converter mensagem: {e}")
             return None
 
     def _classificar_tipo_mensagem(self, assunto: str) -> TipoMensagem:
@@ -373,6 +329,80 @@ class DETScraper:
                 return tipo
 
         return TipoMensagem.OUTRO
+
+    def extrair_detalhes_mensagem(self, index: int) -> Optional[Dict[str, Any]]:
+        """
+        Extrai detalhes completos de uma mensagem específica.
+
+        Args:
+            index: Índice da mensagem na lista (1-based)
+
+        Returns:
+            Dicionário com detalhes completos ou None se erro
+        """
+        try:
+            logger.info(f"Extraindo detalhes da mensagem {index}...")
+
+            # Clicar na mensagem
+            if not self.caixa_postal_page.clicar_mensagem(index):
+                logger.error(f"Falha ao clicar na mensagem {index}")
+                return None
+
+            # Aguardar carregamento da página de detalhes
+            time.sleep(self.delay)
+
+            # Extrair detalhes completos
+            detalhes = self.detalhes_page.extrair_detalhes_completos()
+
+            logger.success(f"✓ Detalhes extraídos: {detalhes['assunto'][:60]}")
+
+            # Voltar para lista
+            if self.detalhes_page.voltar_para_lista():
+                time.sleep(self.delay)
+            else:
+                logger.warning("Não foi possível voltar para lista")
+
+            return detalhes
+
+        except Exception as e:
+            logger.error(f"Erro ao extrair detalhes da mensagem: {e}")
+            self.detalhes_page.take_screenshot(f"erro_detalhes_msg_{index}")
+            return None
+
+    def download_anexos_mensagem(self, index: int) -> int:
+        """
+        Faz download de todos os anexos de uma mensagem.
+
+        Args:
+            index: Índice da mensagem na lista (1-based)
+
+        Returns:
+            Número de anexos baixados com sucesso
+        """
+        try:
+            logger.info(f"Iniciando download de anexos da mensagem {index}...")
+
+            # Clicar na mensagem
+            if not self.caixa_postal_page.clicar_mensagem(index):
+                logger.error(f"Falha ao clicar na mensagem {index}")
+                return 0
+
+            time.sleep(self.delay)
+
+            # Download de anexos
+            total_baixados = self.detalhes_page.download_todos_anexos()
+
+            logger.success(f"✓ {total_baixados} anexo(s) baixado(s)")
+
+            # Voltar para lista
+            self.detalhes_page.voltar_para_lista()
+            time.sleep(self.delay)
+
+            return total_baixados
+
+        except Exception as e:
+            logger.error(f"Erro ao baixar anexos: {e}")
+            return 0
 
     def consultar_cliente(self, cliente: Cliente, apenas_nao_lidas: bool = False) -> RelatorioConsulta:
         """
