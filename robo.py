@@ -41,8 +41,9 @@ def exibir_menu_principal():
     table.add_row("4", "⚙️  Configurar Certificado")
     table.add_row("5", "👥 Gerenciar Clientes (adicionar/remover)")
     table.add_row("6", "📧 Configurar Notificações por Email")
-    table.add_row("7", "🔍 Verificar Instalação")
-    table.add_row("8", "📖 Ajuda e Documentação")
+    table.add_row("7", "🧪 Testar Navegador (diagnóstico)")
+    table.add_row("8", "🔍 Verificar Instalação")
+    table.add_row("9", "📖 Ajuda e Documentação")
     table.add_row("0", "❌ Sair")
 
     console.print(table)
@@ -50,7 +51,7 @@ def exibir_menu_principal():
 
     return Prompt.ask(
         "Escolha uma opção",
-        choices=["0", "1", "2", "3", "4", "5", "6", "7", "8"],
+        choices=["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"],
         default="1"
     )
 
@@ -357,6 +358,43 @@ def exibir_ajuda():
     input("\nPressione Enter para voltar ao menu...")
 
 
+def testar_navegador():
+    """Testa o navegador e diagnostica problemas."""
+    console.print("\n[bold cyan]🧪 Teste de Navegador e Diagnóstico[/bold cyan]")
+    console.print()
+
+    console.print("Este teste irá:")
+    console.print("  1. Verificar se Chrome/Edge está instalado")
+    console.print("  2. Testar se o WebDriver funciona")
+    console.print("  3. Abrir o navegador para você ver")
+    console.print()
+
+    if not Confirm.ask("Deseja executar o teste?", default=True):
+        return
+
+    try:
+        console.print("\n⏳ Executando teste...")
+        console.print("[dim]Isso pode demorar alguns segundos...[/dim]\n")
+
+        result = subprocess.run(
+            [sys.executable, "scripts/testar_navegador.py"],
+            check=False
+        )
+
+        console.print()
+        if result.returncode == 0:
+            console.print("✅ Teste concluído!", style="green")
+        else:
+            console.print("❌ Teste encontrou problemas.", style="red")
+            console.print("\n💡 Execute o diagnóstico completo:")
+            console.print("   [cyan]python scripts/diagnosticar_ambiente.py[/cyan]")
+
+    except Exception as e:
+        console.print(f"\n❌ Erro ao executar teste: {e}", style="red")
+
+    input("\nPressione Enter para voltar ao menu...")
+
+
 def main():
     """Função principal."""
     while True:
@@ -379,8 +417,10 @@ def main():
             elif opcao == "6":
                 configurar_email()
             elif opcao == "7":
-                verificar_instalacao()
+                testar_navegador()
             elif opcao == "8":
+                verificar_instalacao()
+            elif opcao == "9":
                 exibir_ajuda()
 
         except KeyboardInterrupt:

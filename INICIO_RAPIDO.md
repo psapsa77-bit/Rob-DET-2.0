@@ -46,9 +46,26 @@ O instalador vai:
 
 **É só seguir as instruções na tela!** 😊
 
-### **Passo 3: Pronto para Usar!**
+### **Passo 3: Testar o Navegador (IMPORTANTE!)**
 
-Após a instalação, você já pode usar o robô.
+Antes de usar o robô pela primeira vez, teste se o navegador funciona:
+
+```bash
+python robo.py
+```
+
+No menu, escolha a opção **7 - 🧪 Testar Navegador**
+
+Isso vai:
+- ✅ Verificar se Chrome ou Edge está instalado
+- ✅ Abrir o navegador para você ver
+- ✅ Confirmar que está tudo funcionando
+
+> **⚠️ IMPORTANTE:** Se o navegador não abrir, execute:
+> ```bash
+> python scripts/diagnosticar_ambiente.py
+> ```
+> Este script vai tentar corrigir automaticamente os problemas!
 
 ---
 
@@ -76,8 +93,9 @@ Você verá um menu com opções:
 4  ⚙️  Configurar Certificado
 5  👥 Gerenciar Clientes (adicionar/remover)
 6  📧 Configurar Notificações por Email
-7  🔍 Verificar Instalação
-8  📖 Ajuda e Documentação
+7  🧪 Testar Navegador (diagnóstico)
+8  🔍 Verificar Instalação
+9  📖 Ajuda e Documentação
 0  ❌ Sair
 
 Escolha uma opção [1]:

@@ -45,7 +45,8 @@ class DETNavigator:
         browser: str = 'chrome',
         headless: bool = False,
         timeout: int = 30,
-        action_delay: float = 1.5
+        action_delay: float = 1.5,
+        download_path: Optional[str] = None
     ):
         """
         Inicializa o navegador.
@@ -55,11 +56,13 @@ class DETNavigator:
             headless: Modo headless (sem interface gráfica)
             timeout: Timeout padrão em segundos
             action_delay: Delay entre ações (humanizar)
+            download_path: Caminho para downloads (opcional)
         """
         self.browser = browser
         self.headless = headless
         self.timeout = timeout
         self.action_delay = action_delay
+        self.download_path = download_path or str(Path.cwd() / "downloads")
 
         self.driver: Optional[webdriver.Chrome | webdriver.Edge] = None
         self.wait: Optional[WebDriverWait] = None
@@ -87,9 +90,17 @@ class DETNavigator:
         options.add_argument('--window-size=1920,1080')
         options.add_argument('--start-maximized')
 
-        # Desabilitar notificações
+        # Configurar diretório de downloads
+        download_dir = Path(self.download_path).resolve()
+        download_dir.mkdir(parents=True, exist_ok=True)
+
+        # Desabilitar notificações e configurar downloads
         prefs = {
-            "profile.default_content_setting_values.notifications": 2
+            "profile.default_content_setting_values.notifications": 2,
+            "download.default_directory": str(download_dir),
+            "download.prompt_for_download": False,
+            "download.directory_upgrade": True,
+            "safebrowsing.enabled": True
         }
         options.add_experimental_option("prefs", prefs)
 
@@ -133,17 +144,49 @@ class DETNavigator:
             RuntimeError: Se não conseguir iniciar o navegador
         """
         try:
+            logger.info("="*60)
             logger.info("Iniciando WebDriver...")
+            logger.info("="*60)
 
             if self.browser == 'chrome':
-                options = self._get_chrome_options()
-                service = ChromeService(ChromeDriverManager().install())
-                self.driver = webdriver.Chrome(service=service, options=options)
+                logger.info("🌐 Preparando Google Chrome...")
+                logger.info("   (Isso pode demorar na primeira vez - download do ChromeDriver)")
+
+                try:
+                    options = self._get_chrome_options()
+                    service = ChromeService(ChromeDriverManager().install())
+
+                    logger.info("🚀 Abrindo navegador Chrome...")
+                    self.driver = webdriver.Chrome(service=service, options=options)
+                    logger.success("✅ Chrome iniciado com sucesso!")
+
+                except Exception as chrome_error:
+                    logger.error(f"❌ Erro ao iniciar Chrome: {chrome_error}")
+                    logger.info("💡 Possíveis soluções:")
+                    logger.info("   1. Verifique se o Google Chrome está instalado")
+                    logger.info("   2. Execute: python scripts/diagnosticar_ambiente.py")
+                    logger.info("   3. Tente usar Edge: configure 'navegador: edge' no settings.json")
+                    raise
 
             elif self.browser == 'edge':
-                options = self._get_edge_options()
-                service = EdgeService(EdgeChromiumDriverManager().install())
-                self.driver = webdriver.Edge(service=service, options=options)
+                logger.info("🌐 Preparando Microsoft Edge...")
+                logger.info("   (Isso pode demorar na primeira vez - download do EdgeDriver)")
+
+                try:
+                    options = self._get_edge_options()
+                    service = EdgeService(EdgeChromiumDriverManager().install())
+
+                    logger.info("🚀 Abrindo navegador Edge...")
+                    self.driver = webdriver.Edge(service=service, options=options)
+                    logger.success("✅ Edge iniciado com sucesso!")
+
+                except Exception as edge_error:
+                    logger.error(f"❌ Erro ao iniciar Edge: {edge_error}")
+                    logger.info("💡 Possíveis soluções:")
+                    logger.info("   1. Verifique se o Microsoft Edge está instalado")
+                    logger.info("   2. Execute: python scripts/diagnosticar_ambiente.py")
+                    logger.info("   3. Tente usar Chrome: configure 'navegador: chrome' no settings.json")
+                    raise
 
             else:
                 raise ValueError(f"Navegador não suportado: {self.browser}")
@@ -160,11 +203,29 @@ class DETNavigator:
                 '''
             })
 
-            logger.success("WebDriver iniciado com sucesso")
+            logger.success("✅ WebDriver iniciado e configurado com sucesso!")
+            logger.info("="*60)
+
+        except ValueError as e:
+            logger.error(f"Configuração inválida: {e}")
+            raise
 
         except Exception as e:
-            logger.error(f"Falha ao iniciar WebDriver: {e}")
-            raise RuntimeError(f"Não foi possível iniciar o navegador: {e}")
+            logger.error("="*60)
+            logger.error("❌ ERRO CRÍTICO: Não foi possível iniciar o navegador")
+            logger.error("="*60)
+            logger.error(f"Detalhes do erro: {e}")
+            logger.info("\n🔧 COMO RESOLVER:")
+            logger.info("   1. Execute o diagnóstico: python scripts/diagnosticar_ambiente.py")
+            logger.info("   2. Ou teste o navegador: python scripts/testar_navegador.py")
+            logger.info("   3. Verifique se Chrome ou Edge está instalado")
+            logger.info("   4. Reinstale as dependências: pip install -r requirements.txt")
+            logger.info("="*60)
+            raise RuntimeError(
+                f"\n\n❌ Falha ao iniciar navegador {self.browser}\n\n"
+                f"Execute: python scripts/diagnosticar_ambiente.py\n"
+                f"Erro: {e}"
+            )
 
     def stop(self) -> None:
         """Fecha o navegador."""
