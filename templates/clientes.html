@@ -1,0 +1,318 @@
+{% extends "base.html" %}
+
+{% block title %}Clientes - Rob-DET 2.0{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-people-fill"></i> Gerenciamento de Clientes</h2>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNovoCliente">
+        <i class="bi bi-person-plus"></i> Novo Cliente
+    </button>
+</div>
+
+<!-- Tabela de Clientes -->
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover" id="tabelaClientes">
+                <thead>
+                    <tr>
+                        <th>CNPJ</th>
+                        <th>Razão Social</th>
+                        <th>Nome Fantasia</th>
+                        <th>Status</th>
+                        <th>Prioridade</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="clientesTableBody">
+                    {% for cliente in clientes %}
+                    <tr>
+                        <td>{{ cliente.cnpj }}</td>
+                        <td>{{ cliente.razao_social }}</td>
+                        <td>{{ cliente.nome_fantasia or '-' }}</td>
+                        <td>
+                            {% if cliente.ativo %}
+                            <span class="badge bg-success">Ativo</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Inativo</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if cliente.prioridade == 'alta' or cliente.prioridade == 'high' %}
+                            <span class="badge bg-danger">Alta</span>
+                            {% elif cliente.prioridade == 'baixa' or cliente.prioridade == 'low' %}
+                            <span class="badge bg-secondary">Baixa</span>
+                            {% else %}
+                            <span class="badge bg-primary">Normal</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" onclick="editarCliente('{{ cliente.cnpj }}')">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="excluirCliente('{{ cliente.cnpj }}', '{{ cliente.razao_social }}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted">
+                            Nenhum cliente cadastrado. Clique em "Novo Cliente" para adicionar.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Novo Cliente -->
+<div class="modal fade" id="modalNovoCliente" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-person-plus"></i> Novo Cliente
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formNovoCliente">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">CNPJ *</label>
+                            <input type="text" class="form-control" name="cnpj" required
+                                   placeholder="00.000.000/0000-00">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Prioridade</label>
+                            <select class="form-select" name="prioridade">
+                                <option value="normal">Normal</option>
+                                <option value="alta">Alta</option>
+                                <option value="baixa">Baixa</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Razão Social *</label>
+                        <input type="text" class="form-control" name="razao_social" required
+                               placeholder="EMPRESA EXEMPLO LTDA">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Nome Fantasia</label>
+                        <input type="text" class="form-control" name="nome_fantasia"
+                               placeholder="Exemplo Comércio">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Email para Notificações</label>
+                        <input type="email" class="form-control" name="email_notificacao"
+                               placeholder="contato@empresa.com.br">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Observações</label>
+                        <textarea class="form-control" name="observacoes" rows="3"
+                                  placeholder="Informações adicionais sobre o cliente"></textarea>
+                    </div>
+
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="ativo" id="ativo" checked>
+                        <label class="form-check-label" for="ativo">
+                            Cliente Ativo
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="salvarCliente()">
+                    <i class="bi bi-save"></i> Salvar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Editar Cliente -->
+<div class="modal fade" id="modalEditarCliente" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title">
+                    <i class="bi bi-pencil"></i> Editar Cliente
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formEditarCliente">
+                    <input type="hidden" name="cnpj_original" id="cnpj_original">
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">CNPJ</label>
+                            <input type="text" class="form-control" id="edit_cnpj" name="cnpj" readonly>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Prioridade</label>
+                            <select class="form-select" id="edit_prioridade" name="prioridade">
+                                <option value="normal">Normal</option>
+                                <option value="alta">Alta</option>
+                                <option value="baixa">Baixa</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Razão Social *</label>
+                        <input type="text" class="form-control" id="edit_razao_social" name="razao_social" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Nome Fantasia</label>
+                        <input type="text" class="form-control" id="edit_nome_fantasia" name="nome_fantasia">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Email para Notificações</label>
+                        <input type="email" class="form-control" id="edit_email" name="email_notificacao">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Observações</label>
+                        <textarea class="form-control" id="edit_observacoes" name="observacoes" rows="3"></textarea>
+                    </div>
+
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="edit_ativo" name="ativo">
+                        <label class="form-check-label" for="edit_ativo">
+                            Cliente Ativo
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-warning" onclick="atualizarCliente()">
+                    <i class="bi bi-save"></i> Atualizar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function salvarCliente() {
+    const form = document.getElementById('formNovoCliente');
+    const formData = new FormData(form);
+
+    const dados = {
+        cnpj: formData.get('cnpj'),
+        razao_social: formData.get('razao_social'),
+        nome_fantasia: formData.get('nome_fantasia') || '',
+        email_notificacao: formData.get('email_notificacao') || '',
+        observacoes: formData.get('observacoes') || '',
+        prioridade: formData.get('prioridade'),
+        ativo: formData.get('ativo') === 'on'
+    };
+
+    fetch('/api/clientes', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(dados)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Cliente adicionado com sucesso!');
+            location.reload();
+        } else {
+            alert('Erro: ' + (data.error || 'Desconhecido'));
+        }
+    })
+    .catch(error => {
+        alert('Erro ao salvar cliente: ' + error);
+    });
+}
+
+function editarCliente(cnpj) {
+    fetch('/api/clientes')
+        .then(response => response.json())
+        .then(data => {
+            const cliente = data.clientes.find(c => c.cnpj === cnpj);
+            if (cliente) {
+                document.getElementById('cnpj_original').value = cnpj;
+                document.getElementById('edit_cnpj').value = cliente.cnpj;
+                document.getElementById('edit_razao_social').value = cliente.razao_social;
+                document.getElementById('edit_nome_fantasia').value = cliente.nome_fantasia || '';
+                document.getElementById('edit_email').value = cliente.email_notificacao || '';
+                document.getElementById('edit_observacoes').value = cliente.observacoes || '';
+                document.getElementById('edit_prioridade').value = cliente.prioridade;
+                document.getElementById('edit_ativo').checked = cliente.ativo;
+
+                const modal = new bootstrap.Modal(document.getElementById('modalEditarCliente'));
+                modal.show();
+            }
+        });
+}
+
+function atualizarCliente() {
+    const form = document.getElementById('formEditarCliente');
+    const formData = new FormData(form);
+    const cnpj = formData.get('cnpj_original');
+
+    const dados = {
+        razao_social: formData.get('razao_social'),
+        nome_fantasia: formData.get('nome_fantasia'),
+        email_notificacao: formData.get('email_notificacao'),
+        observacoes: formData.get('observacoes'),
+        prioridade: formData.get('prioridade'),
+        ativo: formData.get('ativo') === 'on'
+    };
+
+    fetch(`/api/clientes/${cnpj}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(dados)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Cliente atualizado com sucesso!');
+            location.reload();
+        } else {
+            alert('Erro: ' + (data.error || 'Desconhecido'));
+        }
+    })
+    .catch(error => {
+        alert('Erro ao atualizar cliente: ' + error);
+    });
+}
+
+function excluirCliente(cnpj, razaoSocial) {
+    if (confirm(`Deseja realmente excluir o cliente:\n${razaoSocial} (${cnpj})?`)) {
+        fetch(`/api/clientes/${cnpj}`, {method: 'DELETE'})
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Cliente excluído com sucesso!');
+                    location.reload();
+                } else {
+                    alert('Erro: ' + (data.error || 'Desconhecido'));
+                }
+            })
+            .catch(error => {
+                alert('Erro ao excluir cliente: ' + error);
+            });
+    }
+}
+</script>
+{% endblock %}

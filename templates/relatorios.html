@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Relatórios - Rob-DET 2.0{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h2><i class="bi bi-file-earmark-bar-graph"></i> Relatórios</h2>
+    <p class="text-muted">Baixe os relatórios gerados pelas execuções do robô</p>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th><i class="bi bi-file-earmark-excel"></i> Arquivo</th>
+                        <th><i class="bi bi-calendar"></i> Data</th>
+                        <th><i class="bi bi-hdd"></i> Tamanho</th>
+                        <th><i class="bi bi-download"></i> Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for relatorio in relatorios %}
+                    <tr>
+                        <td>
+                            <i class="bi bi-file-earmark-excel text-success"></i>
+                            {{ relatorio.nome }}
+                        </td>
+                        <td>{{ relatorio.data }}</td>
+                        <td>{{ relatorio.tamanho }}</td>
+                        <td>
+                            <a href="/download/{{ relatorio.nome }}" class="btn btn-sm btn-primary">
+                                <i class="bi bi-download"></i> Download
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="text-center text-muted py-5">
+                            <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+                            <p class="mt-3">Nenhum relatório disponível ainda.</p>
+                            <p>Execute o robô para gerar relatórios.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% if relatorios %}
+<div class="alert alert-info mt-3">
+    <i class="bi bi-info-circle"></i>
+    <strong>Dica:</strong> Os relatórios são gerados automaticamente após cada execução do robô.
+    Eles contêm informações sobre todas as mensagens encontradas para seus clientes.
+</div>
+{% endif %}
+
+{% endblock %}

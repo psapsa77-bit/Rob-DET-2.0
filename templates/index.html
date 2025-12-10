@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Rob-DET 2.0{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-speedometer2"></i> Dashboard</h2>
+    <button class="btn btn-primary btn-lg" id="btnExecutar">
+        <i class="bi bi-play-circle"></i> Executar Robô
+    </button>
+</div>
+
+<!-- Cards de Estatísticas -->
+<div class="row">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-2">Total de Clientes</h6>
+                        <h2 class="mb-0">{{ total_clientes }}</h2>
+                    </div>
+                    <div class="text-primary" style="font-size: 3rem;">
+                        <i class="bi bi-people-fill"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-2">Clientes Ativos</h6>
+                        <h2 class="mb-0 text-success">{{ clientes_ativos }}</h2>
+                    </div>
+                    <div class="text-success" style="font-size: 3rem;">
+                        <i class="bi bi-check-circle-fill"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-2">Status</h6>
+                        <h5 class="mb-0">
+                            <span class="badge bg-success" id="statusBadge">
+                                <i class="bi bi-circle-fill" style="font-size: 0.6rem;"></i> Pronto
+                            </span>
+                        </h5>
+                    </div>
+                    <div class="text-info" style="font-size: 3rem;">
+                        <i class="bi bi-robot"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-2">Última Execução</h6>
+                        <small id="ultimaExecucao">Nunca</small>
+                    </div>
+                    <div class="text-secondary" style="font-size: 3rem;">
+                        <i class="bi bi-clock-history"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Card de Execução -->
+<div class="card" id="execucaoCard" style="display: none;">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="bi bi-gear-fill"></i> Execução em Andamento</h5>
+    </div>
+    <div class="card-body">
+        <div class="mb-3">
+            <div class="d-flex justify-content-between mb-2">
+                <span>Progresso</span>
+                <span id="progressText">0%</span>
+            </div>
+            <div class="progress" style="height: 25px;">
+                <div class="progress-bar progress-bar-striped progress-bar-animated"
+                     role="progressbar"
+                     id="progressBar"
+                     style="width: 0%">
+                </div>
+            </div>
+        </div>
+
+        <div id="currentClient"></div>
+
+        <div class="mt-3">
+            <h6>Mensagens:</h6>
+            <div id="execucaoLog" class="border rounded p-3" style="max-height: 300px; overflow-y: auto; background-color: #f8f9fa;">
+                <p class="text-muted">Iniciando...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Início Rápido -->
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-rocket-takeoff"></i> Início Rápido</h5>
+            </div>
+            <div class="card-body">
+                <p>Bem-vindo à interface web do Rob-DET 2.0!</p>
+                <ol>
+                    <li>Adicione seus clientes na página <a href="/clientes">Clientes</a></li>
+                    <li>Clique em "Executar Robô" para iniciar a consulta</li>
+                    <li>Acompanhe os resultados em <a href="/relatorios">Relatórios</a></li>
+                </ol>
+                <a href="/clientes" class="btn btn-primary">
+                    <i class="bi bi-person-plus"></i> Adicionar Clientes
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> Informações</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>O que o robô faz?</strong></p>
+                <p>Consulta automaticamente o portal DET (Domicílio Eletrônico Trabalhista) para verificar se há novas mensagens para seus clientes.</p>
+
+                <p class="mb-0"><strong>Funcionalidades:</strong></p>
+                <ul>
+                    <li>Consulta múltiplos CNPJs</li>
+                    <li>Extração de mensagens</li>
+                    <li>Geração de relatórios</li>
+                    <li>Notificações automáticas</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Atualizar status a cada 2 segundos
+setInterval(atualizarStatus, 2000);
+
+function atualizarStatus() {
+    fetch('/api/status')
+        .then(response => response.json())
+        .then(data => {
+            const statusBadge = document.getElementById('statusBadge');
+            const execucaoCard = document.getElementById('execucaoCard');
+
+            if (data.running) {
+                statusBadge.className = 'badge bg-warning';
+                statusBadge.innerHTML = '<i class="bi bi-circle-fill" style="font-size: 0.6rem;"></i> Executando';
+                execucaoCard.style.display = 'block';
+
+                // Atualizar progresso
+                const progress = (data.progress || 0);
+                document.getElementById('progressBar').style.width = progress + '%';
+                document.getElementById('progressText').textContent = Math.round(progress) + '%';
+
+                // Cliente atual
+                if (data.current_client) {
+                    document.getElementById('currentClient').innerHTML =
+                        `<p class="mb-0"><strong>Cliente atual:</strong> ${data.current_client}</p>`;
+                }
+
+                // Mensagens
+                if (data.messages && data.messages.length > 0) {
+                    const log = document.getElementById('execucaoLog');
+                    log.innerHTML = data.messages.map(msg => `<p class="mb-1">${msg}</p>`).join('');
+                    log.scrollTop = log.scrollHeight;
+                }
+            } else {
+                statusBadge.className = 'badge bg-success';
+                statusBadge.innerHTML = '<i class="bi bi-circle-fill" style="font-size: 0.6rem;"></i> Pronto';
+                execucaoCard.style.display = 'none';
+            }
+
+            // Última execução
+            if (data.last_execution) {
+                const timestamp = new Date(data.last_execution.timestamp);
+                document.getElementById('ultimaExecucao').textContent =
+                    timestamp.toLocaleString('pt-BR');
+            }
+        })
+        .catch(error => console.error('Erro ao atualizar status:', error));
+}
+
+// Botão executar
+document.getElementById('btnExecutar').addEventListener('click', function() {
+    if (confirm('Deseja iniciar a execução do robô?')) {
+        fetch('/api/executar', {method: 'POST'})
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Execução iniciada! Acompanhe o progresso abaixo.');
+                } else {
+                    alert('Erro: ' + (data.error || 'Desconhecido'));
+                }
+            })
+            .catch(error => {
+                alert('Erro ao iniciar execução: ' + error);
+            });
+    }
+});
+
+// Atualizar na carga
+atualizarStatus();
+</script>
+{% endblock %}
