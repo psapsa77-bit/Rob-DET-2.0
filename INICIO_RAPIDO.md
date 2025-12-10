@@ -54,6 +54,22 @@ pip install -r requirements.txt
 
 > **💡 Dica:** Se aparecer erro "No module named 'loguru'" ou similar, é porque você pulou este passo! Execute uma das opções acima.
 
+#### **📝 Configurar Clientes (se não usou Opção A)**
+
+Se você escolheu Opção B ou C, precisa criar o arquivo de clientes:
+
+```bash
+python criar_clientes.py
+```
+
+Este script vai te guiar para adicionar os CNPJs que você quer monitorar.
+
+**OU** copie manualmente o arquivo de exemplo:
+```bash
+cp config/clientes.json.example config/clientes.json
+```
+Depois edite e coloque seus CNPJs reais.
+
 ---
 
 ### **Passo 3: Testar o Navegador (IMPORTANTE!)**

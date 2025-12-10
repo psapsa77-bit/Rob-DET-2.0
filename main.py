@@ -95,7 +95,10 @@ class RoboDET:
 
             if not clientes_file.exists():
                 logger.warning(f"Arquivo não encontrado: {clientes_file}")
-                logger.info("Usando cliente de exemplo")
+                logger.info("💡 Crie o arquivo copiando: cp config/clientes.json.example config/clientes.json")
+                logger.info("   Ou use a opção 5 do menu: python robo.py")
+                logger.info("")
+                logger.info("⚠️  Usando cliente de exemplo temporário")
                 return [
                     Cliente(
                         cnpj="12.345.678/0001-90",
@@ -106,25 +109,74 @@ class RoboDET:
             with open(clientes_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
 
-            clientes = [Cliente(**c) for c in data.get('clientes', [])]
+            # Validar estrutura do JSON
+            if not isinstance(data, dict):
+                logger.error(f"Formato inválido em {clientes_file}: esperado dicionário, recebido {type(data).__name__}")
+                logger.info("💡 O arquivo deve ter o formato:")
+                logger.info('   {"clientes": [...]}')
+                logger.info("   Consulte config/clientes.json.example")
+                return []
+
+            if 'clientes' not in data:
+                logger.error(f"Formato inválido em {clientes_file}: chave 'clientes' não encontrada")
+                logger.info("💡 O arquivo deve ter o formato:")
+                logger.info('   {"clientes": [...]}')
+                logger.info("   Consulte config/clientes.json.example")
+                return []
+
+            clientes_data = data.get('clientes', [])
+
+            if not isinstance(clientes_data, list):
+                logger.error(f"Formato inválido: 'clientes' deve ser uma lista")
+                return []
+
+            # Criar objetos Cliente
+            clientes = []
+            for idx, c in enumerate(clientes_data):
+                try:
+                    if not isinstance(c, dict):
+                        logger.warning(f"Cliente {idx+1} ignorado: formato inválido (esperado dicionário)")
+                        continue
+
+                    cliente = Cliente(**c)
+                    clientes.append(cliente)
+                except Exception as e:
+                    logger.warning(f"Erro ao processar cliente {idx+1}: {e}")
+                    continue
+
+            if not clientes:
+                logger.warning("Nenhum cliente válido encontrado no arquivo")
+                return []
 
             # Filtrar apenas ativos
             clientes_ativos = [c for c in clientes if c.ativo]
 
-            logger.info(f"✓ {len(clientes_ativos)} cliente(s) carregado(s)")
+            if not clientes_ativos:
+                logger.warning("Nenhum cliente ativo encontrado")
+                logger.info(f"Total de clientes: {len(clientes)} (todos inativos)")
+                return []
+
+            logger.info(f"✓ {len(clientes_ativos)} cliente(s) ativo(s) carregado(s)")
 
             # Ordenar por prioridade
-            ordem_prioridade = {"alta": 0, "normal": 1, "baixa": 2}
-            clientes_ativos.sort(key=lambda c: ordem_prioridade.get(c.prioridade, 1))
+            ordem_prioridade = {"alta": 0, "high": 0, "normal": 1, "baixa": 2, "low": 2}
+            clientes_ativos.sort(key=lambda c: ordem_prioridade.get(c.prioridade.lower() if c.prioridade else "normal", 1))
 
             return clientes_ativos
 
         except json.JSONDecodeError as e:
             logger.error(f"Erro ao parsear JSON de clientes: {e}")
+            logger.error(f"   Arquivo: {clientes_file}")
+            logger.error(f"   Linha {e.lineno}, Coluna {e.colno}: {e.msg}")
+            logger.info("💡 Verifique se o JSON está bem formatado")
+            logger.info("   Use um validador online: https://jsonlint.com/")
             return []
 
         except Exception as e:
             logger.error(f"Erro ao carregar clientes: {e}")
+            logger.exception(e)  # Log da stack trace completa
+            logger.info("💡 Verifique o arquivo config/clientes.json")
+            logger.info("   Ou consulte o exemplo em config/clientes.json.example")
             return []
 
     def inicializar_navegador(self) -> bool:
