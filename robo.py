@@ -9,10 +9,19 @@ import sys
 import subprocess
 from pathlib import Path
 
-from rich.console import Console
-from rich.panel import Panel
-from rich.prompt import Prompt, Confirm
-from rich.table import Table
+# Verificar se rich está instalada (dependência mínima para a interface)
+try:
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.prompt import Prompt, Confirm
+    from rich.table import Table
+except ImportError:
+    print("\n❌ ERRO: Dependências não instaladas!")
+    print("\n📦 Execute um dos seguintes comandos:")
+    print("   1. python install.py       (recomendado - instalador completo)")
+    print("   2. pip install -r requirements.txt")
+    print("\nApós instalar, execute novamente: python robo.py")
+    sys.exit(1)
 
 console = Console()
 

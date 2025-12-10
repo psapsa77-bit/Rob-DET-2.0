@@ -17,7 +17,7 @@ Você vai precisar de:
 
 ---
 
-## 🎯 Instalação em 3 Passos
+## 🎯 Instalação em 4 Passos
 
 ### **Passo 1: Baixar o Projeto**
 
@@ -29,22 +29,32 @@ Você vai precisar de:
    cd C:\Rob-DET-2.0
    ```
 
-### **Passo 2: Executar o Instalador**
+### **Passo 2: Instalar Dependências 📦 (OBRIGATÓRIO!)**
 
-Digite no prompt:
+⚠️ **Este é o passo mais importante!** Sem ele, o robô não vai funcionar.
 
+Escolha **UMA** das opções abaixo:
+
+**Opção A - Instalador Completo (⭐ Recomendado):**
 ```bash
 python install.py
 ```
+Faz tudo automaticamente: instala dependências + configura certificado + adiciona clientes.
 
-O instalador vai:
-- ✅ Verificar se está tudo OK
-- ✅ Instalar as bibliotecas necessárias
-- ✅ Te guiar pela configuração do certificado
-- ✅ Pedir os CNPJs que você quer monitorar
-- ✅ Configurar horários de execução
+**Opção B - Apenas Dependências (Rápido):**
+```bash
+python instalar_dependencias.py
+```
+Instala só as bibliotecas. Você configura o resto depois no menu.
 
-**É só seguir as instruções na tela!** 😊
+**Opção C - Manual:**
+```bash
+pip install -r requirements.txt
+```
+
+> **💡 Dica:** Se aparecer erro "No module named 'loguru'" ou similar, é porque você pulou este passo! Execute uma das opções acima.
+
+---
 
 ### **Passo 3: Testar o Navegador (IMPORTANTE!)**
 
@@ -66,6 +76,12 @@ Isso vai:
 > python scripts/diagnosticar_ambiente.py
 > ```
 > Este script vai tentar corrigir automaticamente os problemas!
+
+### **Passo 4: Pronto para Usar! 🎉**
+
+Após testar o navegador com sucesso, você já pode usar o robô normalmente!
+
+Execute `python robo.py` e escolha a opção **1** para consultar o portal DET imediatamente.
 
 ---
 
