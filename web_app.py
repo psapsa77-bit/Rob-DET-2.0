@@ -4,15 +4,41 @@ Interface Web - Rob-DET 2.0
 Aplicação Flask para gerenciar o robô DET via navegador.
 """
 
-from flask import Flask, render_template, request, jsonify, send_file
+import sys
+
+# Verificar se Flask está instalado
+try:
+    from flask import Flask, render_template, request, jsonify, send_file
+except ImportError:
+    print("\n" + "="*60)
+    print("❌ ERRO: Flask não está instalado!")
+    print("="*60)
+    print("\n📦 Execute um dos seguintes comandos para instalar:\n")
+    print("   Opção 1 (Recomendado):")
+    print("   python instalar_web.py\n")
+    print("   Opção 2 (Manual):")
+    print("   pip install Flask Flask-CORS\n")
+    print("="*60)
+    sys.exit(1)
+
 from pathlib import Path
 import json
 import threading
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from src.models import Cliente
-from src.config_manager import get_config
+try:
+    from src.models import Cliente
+    from src.config_manager import get_config
+except ImportError as e:
+    print("\n" + "="*60)
+    print("❌ ERRO: Dependências do projeto não instaladas!")
+    print("="*60)
+    print(f"\nErro: {e}\n")
+    print("📦 Execute primeiro:")
+    print("   python instalar_dependencias.py\n")
+    print("="*60)
+    sys.exit(1)
 
 
 app = Flask(__name__)
